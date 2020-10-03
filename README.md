@@ -1,2 +1,2 @@
-# pandjo
-A framework for adding context to pandas dataframes by embedding them in django model objects
+# pandjas
+A framework for adding context to pandas dataframes by embedding them within django model objects
