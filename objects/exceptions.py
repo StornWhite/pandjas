@@ -30,3 +30,8 @@ class NoColumnDefFileDefError(PandjasErrorMixin, Exception):
 class IllegalDtypeStringError(PandjasErrorMixin, Exception):
     default_detail = "Incorrect string for identifying column dtype"
     default_code = "objects_illegal_dtypes_string"
+
+
+class InvalidDataFrameError(PandjasErrorMixin, Exception):
+    default_detail = "Dataframe does not have the expected columns and dtypes."
+    default_code = "objects_invalid_dataframe"
