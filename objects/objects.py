@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytz
 
 import objects.exceptions as exc
 
@@ -135,14 +136,14 @@ class ColumnDef(object):
         self.is_input = is_input
 
 
-class PDFrame(object):
+class PdFrame(object):
     """
     The base-level wrapper for a pandas dataframe.  It includes both a
     dataframe and a FrameDef object which can be used to validate that
     the dataframe conforms to our data expectations.  It also includes
     base-level methods for accessing a dataframe.
 
-    You could subclass PDFrame to create your own wrapper class with an
+    You could subclass PdFrame to create your own wrapper class with an
     explicit frame definition and your own analysis methods for performing
     high level operations and analysis on the dataframe with a goal of
     populating result column data from input column data.
@@ -156,14 +157,15 @@ class PDFrame(object):
 
     @dataframe.setter
     def dataframe(self, dataframe):
-        if self.frame_def.validate(dataframe):
+
+        if self.validate(dataframe):
             self._dataframe = dataframe
         else:
             raise exc.InvalidDataFrameError
 
     def __init__(self, frame_def=None, dataframe=None):
         """
-        Sets or creates the PDFrame objects frame definition and initial
+        Sets or creates the PdFrame objects frame definition and initial
         dataframe.
 
         :param frame_def: FrameDef object
@@ -175,9 +177,150 @@ class PDFrame(object):
             self.frame_def = frame_def
 
         if dataframe is None:
-            # Todo: actually create a conforming but empty dataframe
-            self.dataframe = self.frame_def.empty_dataframe
+            # Create conforming but empty dataframe
+            self.dataframe = self.get_empty_dataframe()
         else:
-            self.dataframe = dataframe
+            # Validate incoming dataframe
+            if self.validate(dataframe):
+                self._dataframe = dataframe
+            else:
+                raise exc.InvalidDataFrameError
 
+    def validate(self, dataframe):
+        """
+        Validates dataframe by passing it through to FrameDef.  This method
+        could be overridden in subclasses to provide more sophisticated
+        data validation, beyond column type checking.
 
+        :param dataframe: pandas dataframe object
+        :return: boolean dataframe conforms
+        """
+        return self.frame_def.validate(dataframe)
+
+    def get_empty_dataframe(self):
+        """
+        Returns a dataframe with correctly formatted columns, but no
+        data row data.
+
+        :return: DataFrame object
+        """
+        return self.frame_def.empty_dataframe
+
+class PdIntervalFrame(PdFrame):
+    """
+    A PdFrame subclass for periodic data.  The class includes additional
+    validation to ensure that the index is of timezone-aware datetimes with
+    the expected periodicity.  The class also includes utility methods for
+    periodic data.
+    """
+
+    def __init__(self, period, timezone, frame_def=None, dataframe=None):
+        """
+        Creates a new PdIntervalFrame object.
+
+        period will be internally stored as a Timedelta object.  However,
+        it can be constructed with an integer number of seconds, a pandas
+        frequency string, or a pandas Timedelta object.
+
+        :param period: interval period expressed as one of the following:
+            int - number of seconds,
+            string - pandas frequency string (see https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html?highlight=frequency#dateoffset-objects)
+            pandas Timedelta object
+        :param timezone: pytz timezone object or timezone string
+        :param frame_def: FrameDef object
+        :param dataframe: pandas DataFrame object
+        """
+        # Todo: Storn you need a different empty dataframe, one with an index
+        # Convert string to timezone object
+        if type(timezone) == str:
+            timezone = pytz.timezone(timezone)
+
+        # Set metadata
+        self.timezone = timezone
+
+        if isinstance(period, int):
+            # Convert seconds to Timedelta.
+            period = pd.Timedelta('{}s'.format(period))
+
+        elif isinstance(period, str):
+            # Convert pandas frequency string.
+            period = pd.Timedelta(period)
+
+        elif not isinstance(period, pd.Timedelta):
+            # Must be a Timedelta then.
+            raise exc.InvalidIntervalPeriodError()
+
+        self.period = period
+
+        # Set frame definition
+        if frame_def is None:
+            self.frame_def = FrameDef()
+        else:
+            self.frame_def = frame_def
+
+        # Set dataframe
+        if dataframe is None:
+            # Create conforming but empty dataframe
+            self.dataframe = self.get_empty_dataframe()
+        else:
+            # Validate incoming dataframe
+            if self.validate(dataframe):
+                self._dataframe = dataframe
+            else:
+                raise exc.InvalidDataFrameError
+
+    def validate(self, dataframe):
+        """
+        In addition to validating column types, validates:
+
+        Dataframe index is a DateTimeIndex object
+        Dataframe index dtype is Timestamp with correct Timezone
+        DateTimeIndex frequency matches self.period
+
+        :param dataframe:
+        :return:
+        """
+
+        if super().validate(dataframe):
+            # Dataframe passes column validation
+            # Now validate index
+            idx = dataframe.index
+
+            if not isinstance(idx, pd.DatetimeIndex):
+                # Index is not DatetimeIndex
+                return False
+
+            # Dtype should be datetime64 in the correct timezone
+            dtype = pd.Series(
+                dtype='datetime64[ns, {}]'.format(str(self.timezone))
+            ).dtype
+            if idx.dtype != dtype:
+                # Incorrect dtype
+                return False
+
+            # Index frequency should match interval period.
+            if idx.freq != self.period:
+                return False
+
+        return True
+
+    def get_empty_dataframe(self):
+        """
+        Returns a properly formatted dataframe, with a correctly-formatted
+        DateTimeIndex.
+
+        :return: pandas DataFrame object
+        """
+        # Get dataframe with correctly formatted columns
+        df = super().get_empty_dataframe()
+
+        # Add DateTimeIndex
+        idx = pd.DatetimeIndex(
+            [],
+            tz=self.timezone,
+            freq=self.period,
+            name='timestamp'
+        )
+        df.set_index(idx, inplace=True)
+
+        return df

@@ -33,5 +33,11 @@ class IllegalDtypeStringError(PandjasErrorMixin, Exception):
 
 
 class InvalidDataFrameError(PandjasErrorMixin, Exception):
-    default_detail = "Dataframe does not have the expected columns and dtypes."
+    default_detail = "Dataframe does not meet formatting expectations."
     default_code = "objects_invalid_dataframe"
+
+
+class InvalidIntervalPeriodError(PandjasErrorMixin, Exception):
+    default_detail = "Period must either be an int number of seconds, a " \
+                     "pandas frequency string, or a pandas Timedelta object."
+    default_code = "objects_invalid_interval_period"
