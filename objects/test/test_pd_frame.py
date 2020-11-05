@@ -2,10 +2,10 @@ from unittest import TestCase
 
 import pandas as pd
 
-from objects.objects import FrameDef, PDFrame
+from objects.objects import FrameDef, PdFrame
 
 
-class PDFrameTestCase(TestCase):
+class PdFrameTestCase(TestCase):
 
     def setUp(self):
 
@@ -32,8 +32,8 @@ class PDFrameTestCase(TestCase):
         # Create empty dataframe
         dataframe = frame_def.empty_dataframe
 
-        # Create PDFrame object
-        self.pd_frame = PDFrame(frame_def, dataframe)
+        # Create PdFrame object
+        self.pd_frame = PdFrame(frame_def, dataframe)
 
     def test_validate_valid(self):
 
