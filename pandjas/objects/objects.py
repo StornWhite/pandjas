@@ -1,7 +1,7 @@
 import pandas as pd
 import pytz
 
-import objects.exceptions as exc
+import pandjas.objects.exceptions as exc
 
 
 class FrameDef(object):

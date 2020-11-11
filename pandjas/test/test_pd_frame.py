@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import pandas as pd
 
-from objects.objects import FrameDef, PdFrame
+from pandjas.objects.objects import FrameDef, PdFrame
 
 
 class PdFrameTestCase(TestCase):
