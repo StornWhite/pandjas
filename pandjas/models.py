@@ -4,7 +4,7 @@ from uuid import uuid4
 from django.db import models
 from django.conf import settings
 
-from pandjas.objects.objects import PdFrame
+from pandjas.objects import FrameDef, PdFrame
 
 
 class ValidatingModel(models.Model):
@@ -20,6 +20,43 @@ class ValidatingModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+class FrameTemplate(ValidatingModel, FrameDef):
+    """
+    Like a FrameDef, FrameTemplate is used to validate Dataframe formatting.
+    However, FrameTemplate objects persist as django models, with all the
+    formatting data stored in a json field.
+    """
+    name = models.CharField(
+        max_length=255
+    )
+    template = models.JSONField()
+
+    def __init__(self, *args, **kwargs):
+        """
+        Imports column definitions from JSON.
+        """
+        # Look in kwargs for column definitions:
+        column_defs_dict = kwargs.pop('column_defs_dict', None)
+
+        # Initializes djando model
+        ValidatingModel.__init__(self, *args, **kwargs)
+
+        if column_defs_dict:
+            # Initialize with column definitions
+            FrameDef.__init__(self, self.column_defs_dict)
+        else:
+            # Load column definitions from db
+            FrameDef.__init__(self, self.template)
+
+    def save(self, *args, **kwargs):
+        """
+        Saves FrameDef's dictionary of column definition's as JSON in the
+        template field.
+        """
+        self.template = self.column_defs_dict
+        super().save(*args, **kwargs)
 
 
 class FrameModel(ValidatingModel, PdFrame):

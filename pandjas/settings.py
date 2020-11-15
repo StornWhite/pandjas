@@ -41,6 +41,10 @@ INSTALLED_APPS = [
 
     # Third-party apps
     'django_extensions',
+
+    # Project apps
+    'pandjas.apps.PandjasConfig',
+
 ]
 
 MIDDLEWARE = [
