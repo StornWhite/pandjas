@@ -1,7 +1,7 @@
 import pandas as pd
 import pytz
 
-import pandjas.objects.exceptions as exc
+import pandjas.exceptions as exc
 
 
 class FrameDef(object):
@@ -30,13 +30,56 @@ class FrameDef(object):
 
         return df
 
+    @property
+    def column_defs_dict(self):
+        """
+        This dictionary defines the formatting of a dataframe.  It can be
+        exported to JSON for persistent storage, or used to init a FrameDef
+        object.
+
+        format is:
+        { <column_name> : {
+            "name": <column_name>,
+            "dtype_str": <pandas_dtype_string>,
+            "is_input": <boolean>
+            },
+          ...
+        }
+        :return: dict
+        """
+
+        column_defs_dict = dict()
+
+        for name, column_def in self.column_defs.items():
+            column_defs_dict[name] = column_def.column_def_dict
+
+        return column_defs_dict
+
     # ~~~~~~~~~~~~~~~~~~~~~~~
     # Backend methods
     # ~~~~~~~~~~~~~~~~~~~~~~~
 
-    def __init__(self):
+    def __init__(self, column_defs_dict=None):
+        """
+        Initialized column_defs from column_def_dict with format:
 
+        { <column_name> : {
+            "name": <column_name>,
+            "dtype_str": <pandas_dtype_string>,
+            "is_input": <boolean>
+            },
+          ...
+        }
+
+        or creates empty column_defs if no input.
+
+        :param column_def_dict: dictionary of column attributes.
+        """
         self.column_defs = dict()
+
+        if column_defs_dict is not None:
+            for definition in column_defs_dict.values():
+                self.create_column_def(**definition)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~
     # User methods
@@ -109,6 +152,22 @@ class ColumnDef(object):
     https://pandas.pydata.org/pandas-docs/stable/user_guide/basics.html#dtypes
     https://numpy.org/doc/stable/reference/arrays.dtypes.html
     """
+
+    @property
+    def column_def_dict(self):
+        """
+        A dictionary that defines a ColumnDef format.
+
+        :return: dict
+        """
+
+        column_def_dict = dict()
+
+        column_def_dict['name'] = self.name
+        column_def_dict['dtype_str'] = str(self.dtype)
+        column_def_dict['is_input'] = self.is_input
+
+        return column_def_dict
 
     def __init__(self, frame_def, name, dtype_str, is_input=True):
         """

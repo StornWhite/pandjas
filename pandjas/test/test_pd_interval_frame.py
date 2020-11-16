@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from pandjas.objects.objects import FrameDef, PdIntervalFrame
+from pandjas.objects import FrameDef, PdIntervalFrame
 
 
 class PdIntervalFrameTestCase(TestCase):
