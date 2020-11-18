@@ -44,6 +44,7 @@ INSTALLED_APPS = [
 
     # Project apps
     'pandjas.apps.PandjasConfig',
+    'test_models.apps.TestModelsConfig',
 
 ]
 
@@ -129,5 +130,5 @@ STATIC_URL = '/static/'
 
 # Media files (User uploaded static content)
 # https://docs.djangoproject.com/en/1.11/topics/files/
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media_root/')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'pandjas/media_root/')
 MEDIA_URL = '/media/'

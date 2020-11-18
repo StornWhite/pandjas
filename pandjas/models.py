@@ -1,10 +1,14 @@
 from os import path
 from uuid import uuid4
+from threading import Thread
+
+import pandas as pd
 
 from django.db import models
 from django.conf import settings
 
 from pandjas.objects import FrameDef, PdFrame
+from pandjas.exceptions import InvalidDataFrameError
 
 
 class ValidatingModel(models.Model):
@@ -73,9 +77,33 @@ class FrameModel(ValidatingModel, PdFrame):
         upload_to=folder,
         blank=True
     )
+    frame_template = models.ForeignKey(
+        FrameTemplate,
+        on_delete=models.PROTECT
+    )
 
     class Meta:
         abstract = True
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~
+    # Properties:
+    # ~~~~~~~~~~~~~~~~~~~~~~~
+    @property
+    def dataframe(self):
+        if not hasattr(self, '_dataframe'):
+            thread = Thread(
+                target=self._get_or_create_dataframe
+            )
+            thread.start()
+            thread.join(timeout=30)
+            self.frame_file.close()
+            if thread.is_alive():
+                self._dataframe = self.frame_template.get_empty_dataframe()
+        return self._dataframe
+
+    @dataframe.setter
+    def dataframe(self, dataframe):
+        self._dataframe = dataframe
 
     @property
     def file_name(self):
@@ -104,18 +132,19 @@ class FrameModel(ValidatingModel, PdFrame):
         """
         if not hasattr(self, '_file_path'):
             file_path = settings.MEDIA_ROOT
-            file_path = path.join(file_path, self.folder)
             file_path = path.join(file_path, self.file_name)
             self._file_path = file_path
 
         return self._file_path
 
+    # ~~~~~~~~~~~~~~~~~~~~~~~
+    # Backend methods:
+    # ~~~~~~~~~~~~~~~~~~~~~~~
     def __init__(self, *args, **kwargs):
         """
         Attaches a FrameDef and/or a Dataframe object  if either is passed as
         an argument.
         """
-        frame_def = kwargs.pop('frame_def', None)
         dataframe = kwargs.pop('dataframe', None)
 
         # Initialize the django model
@@ -124,6 +153,50 @@ class FrameModel(ValidatingModel, PdFrame):
         # Add in the frame_def and dataframe
         PdFrame.__init__(
             self,
-            frame_def=frame_def,
+            frame_def=FrameDef(
+                column_defs_dict=self.frame_template.template
+            ),
             dataframe=dataframe
         )
+
+    # Todo: Storn check whether it makes sense to get empty dataframe vs error
+    def _get_or_create_dataframe(self):
+        """
+        Reads dataframe from file, if possible.  Otherwise opens an empty
+        dataframe.
+        :return:
+        """
+        try:
+            self._dataframe = pd.read_parquet(self.frame_file)
+        except (FileNotFoundError, ValueError):
+            self._dataframe = self.frame_template.empty_dataframe
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~
+    # User methods:
+    # ~~~~~~~~~~~~~~~~~~~~~~~
+
+    def save(self, *args, **kwargs):
+        """
+        Saves dataframe to media folder.
+        """
+        # Validate dataframe
+        if self.validate(self.dataframe) is False:
+            raise InvalidDataFrameError()
+
+        # Save dataframe to disk
+        self.dataframe.to_parquet(self.file_path)
+
+        # Update django FileField
+        relative_path = path.join(self.folder, self.file_name)
+        self.frame_file = relative_path
+
+        super().save()
+
+    def delete(self, *args, **kwargs):
+        """
+        Deletes dataframe from media folder prior to deleting model.
+        """
+        storage = self.frame_file.storage
+        storage.delete(self.file_path)
+
+        super().delete(*args, **kwargs)
