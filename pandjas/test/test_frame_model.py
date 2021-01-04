@@ -69,7 +69,7 @@ class FrameModelTestCase(TestCase):
         # Test that the parquet file is deleted.
         self.assertFalse(exists(path))
 
-    def test_model_frame_validation(self):
+    def test_frame_model_validation(self):
         # Remove a required column from dataframe
         dataframe = self.tfm.dataframe.drop("energy", axis=1)
         self.tfm.dataframe = dataframe

@@ -1,6 +1,7 @@
 import pandas as pd
 import pytz
 
+from utils.time import get_period_as_timedelta
 import pandjas.exceptions as exc
 
 
@@ -295,20 +296,7 @@ class PdIntervalFrame(PdFrame):
 
         # Set metadata
         self.timezone = timezone
-
-        if isinstance(period, int):
-            # Convert seconds to Timedelta.
-            period = pd.Timedelta('{}s'.format(period))
-
-        elif isinstance(period, str):
-            # Convert pandas frequency string.
-            period = pd.Timedelta(period)
-
-        elif not isinstance(period, pd.Timedelta):
-            # Must be a Timedelta then.
-            raise exc.InvalidIntervalPeriodError()
-
-        self.period = period
+        self.period = get_period_as_timedelta(period)
 
         # Set frame definition
         if frame_def is None:
