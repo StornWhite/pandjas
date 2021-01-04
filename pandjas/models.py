@@ -6,8 +6,10 @@ import pandas as pd
 
 from django.db import models
 from django.conf import settings
+from timezone_field import TimeZoneField
 
-from pandjas.objects import FrameDef, PdFrame
+from utils.time import get_period_as_timedelta
+from pandjas.objects import FrameDef, PdFrame, PdIntervalFrame
 from pandjas.exceptions import InvalidDataFrameError
 
 
@@ -98,7 +100,7 @@ class FrameModel(ValidatingModel, PdFrame):
             thread.join(timeout=30)
             self.frame_file.close()
             if thread.is_alive():
-                self._dataframe = self.frame_template.get_empty_dataframe()
+                self._dataframe = self.get_empty_dataframe()
         return self._dataframe
 
     @dataframe.setter
@@ -200,3 +202,67 @@ class FrameModel(ValidatingModel, PdFrame):
         storage.delete(self.file_path)
 
         super().delete(*args, **kwargs)
+
+
+class IntervalModel(PdIntervalFrame, FrameModel):
+    """
+    A FrameModel subclass for storing periodic data.  Subclassing
+    PDIntervalFrame provides access to init and validation methods for
+    periodic data.
+    """
+    timezone = TimeZoneField(default='US/Pacific')
+    # Period is stored as iso duration string but returned as a Timedelta
+    period_str = models.CharField(
+        max_length=12
+    )
+
+    class Meta:
+        abstract = True
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~
+    # Properties:
+    # ~~~~~~~~~~~~~~~~~~~~~~~
+    @property
+    def period(self):
+        if not hasattr(self, '._period'):
+            self._period = pd.Timedelta(self.period_str)
+
+        return self._period
+
+    @period.setter
+    def period(self, period):
+        # Accepts input as integer, pd frequency str, or Timedelta object.
+        self._period = get_period_as_timedelta(period)
+        self.period_str = self._period.isoformat()
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~
+    # Backend methods:
+    # ~~~~~~~~~~~~~~~~~~~~~~~
+    def __init__(self, *args, **kwargs):
+        """
+        Attaches a FrameDef and/or a Dataframe object  if either is passed as
+        an argument, as well as initializing timezone and period.
+        """
+        dataframe = kwargs.pop('dataframe', None)
+        period = kwargs.pop('period', None)
+        timezone = kwargs.get('timezone', None)
+
+        self.period = get_period_as_timedelta(period)
+        if type(period) is str:
+            kwargs['period_str'] = period
+        else:
+            kwargs['period_str'] = self.period.isoformat()
+
+        # Initialize the django model
+        ValidatingModel.__init__(self, *args, **kwargs)
+
+        # Add in the frame_def and dataframe
+        PdIntervalFrame.__init__(
+            self,
+            period=period,
+            timezone=timezone,
+            frame_def=FrameDef(
+                column_defs_dict=self.frame_template.template
+            ),
+            dataframe=dataframe
+        )
