@@ -255,7 +255,8 @@ class PdFrame(object):
     def get_empty_dataframe(self):
         """
         Returns a dataframe with correctly formatted columns, but no
-        data row data.
+        data row data.  We do it this way because get_empty_dataframe is more
+        complicated for PdIntervalFrame.
 
         :return: DataFrame object
         """
@@ -285,7 +286,7 @@ class PdIntervalFrame(PdFrame):
         :param frame_def: FrameDef object
         :param dataframe: pandas DataFrame object
         """
-        # Todo: Storn you need a different empty dataframe, one with an index
+
         # Convert string to timezone object
         if type(timezone) == str:
             timezone = pytz.timezone(timezone)
@@ -294,22 +295,12 @@ class PdIntervalFrame(PdFrame):
         self.timezone = timezone
         self.period = get_period_as_timedelta(period)
 
-        # Set frame definition
-        if frame_def is None:
-            self.frame_def = FrameDef()
-        else:
-            self.frame_def = frame_def
-
-        # Set dataframe
-        if dataframe is None:
-            # Create conforming but empty dataframe
-            self.dataframe = self.get_empty_dataframe()
-        else:
-            # Validate incoming dataframe
-            if self.validate(dataframe):
-                self._dataframe = dataframe
-            else:
-                raise exc.InvalidDataFrameError
+        # Add in the frame_def and dataframe
+        PdFrame.__init__(
+            self,
+            frame_def=frame_def,
+            dataframe=dataframe
+        )
 
     def validate(self, dataframe):
         """

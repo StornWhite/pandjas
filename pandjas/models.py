@@ -28,43 +28,6 @@ class ValidatingModel(models.Model):
         abstract = True
 
 
-class FrameTemplate(ValidatingModel, FrameDef):
-    """
-    Like a FrameDef, FrameTemplate is used to validate Dataframe formatting.
-    However, FrameTemplate objects persist as django models, with all the
-    formatting data stored in a json field.
-    """
-    name = models.CharField(
-        max_length=255
-    )
-    template = models.JSONField()
-
-    def __init__(self, *args, **kwargs):
-        """
-        Imports column definitions from JSON.
-        """
-        # Look in kwargs for column definitions:
-        column_defs_dict = kwargs.pop('column_defs_dict', None)
-
-        # Initializes djando model
-        ValidatingModel.__init__(self, *args, **kwargs)
-
-        if column_defs_dict:
-            # Initialize with column definitions
-            FrameDef.__init__(self, self.column_defs_dict)
-        else:
-            # Load column definitions from db
-            FrameDef.__init__(self, self.template)
-
-    def save(self, *args, **kwargs):
-        """
-        Saves FrameDef's dictionary of column definition's as JSON in the
-        template field.
-        """
-        self.template = self.column_defs_dict
-        super().save(*args, **kwargs)
-
-
 class FrameModel(ValidatingModel, PdFrame):
     """
     Subclasses of this abstract django model are automatically linked to a
@@ -78,10 +41,6 @@ class FrameModel(ValidatingModel, PdFrame):
     frame_file = models.FileField(
         upload_to=folder,
         blank=True
-    )
-    frame_template = models.ForeignKey(
-        FrameTemplate,
-        on_delete=models.PROTECT
     )
 
     class Meta:
@@ -146,8 +105,12 @@ class FrameModel(ValidatingModel, PdFrame):
         """
         Attaches a FrameDef and/or a Dataframe object  if either is passed as
         an argument.
+
+        :param frame_def: FrameDef object defining dataframe formating
+        :param dataframe: optional dataframe object, must conform to FrameDef
         """
         dataframe = kwargs.pop('dataframe', None)
+        frame_def = kwargs.pop('frame_def', None)
 
         # Initialize the django model
         ValidatingModel.__init__(self, *args, **kwargs)
@@ -155,13 +118,11 @@ class FrameModel(ValidatingModel, PdFrame):
         # Add in the frame_def and dataframe
         PdFrame.__init__(
             self,
-            frame_def=FrameDef(
-                column_defs_dict=self.frame_template.template
-            ),
+            frame_def=frame_def,
             dataframe=dataframe
         )
 
-    # Todo: Storn check whether it makes sense to get empty dataframe vs error
+    # Todo: Storn think whether it makes sense to get empty dataframe vs error
     def _get_or_create_dataframe(self):
         """
         Reads dataframe from file, if possible.  Otherwise opens an empty
@@ -171,7 +132,7 @@ class FrameModel(ValidatingModel, PdFrame):
         try:
             self._dataframe = pd.read_parquet(self.frame_file)
         except (FileNotFoundError, ValueError):
-            self._dataframe = self.frame_template.empty_dataframe
+            self._dataframe = self.get_empty_dataframe()
 
     # ~~~~~~~~~~~~~~~~~~~~~~~
     # User methods:
@@ -244,6 +205,7 @@ class IntervalModel(PdIntervalFrame, FrameModel):
         an argument, as well as initializing timezone and period.
         """
         dataframe = kwargs.pop('dataframe', None)
+        frame_def = kwargs.pop('frame_def', None)
         period = kwargs.pop('period', None)
         timezone = kwargs.get('timezone', None)
 
@@ -261,8 +223,6 @@ class IntervalModel(PdIntervalFrame, FrameModel):
             self,
             period=period,
             timezone=timezone,
-            frame_def=FrameDef(
-                column_defs_dict=self.frame_template.template
-            ),
+            frame_def=frame_def,
             dataframe=dataframe
         )
