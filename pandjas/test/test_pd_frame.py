@@ -10,24 +10,26 @@ class PdFrameTestCase(TestCase):
     def setUp(self):
 
         # Create FrameDef object
-        frame_def = FrameDef()
-        frame_def.create_column_def(
-            "timestamp",
-            "datetime64[ns, US/Pacific]"
-        )
-        frame_def.create_column_def(
-            "power",
-            "float"
-        )
-        frame_def.create_column_def(
-            "customer_id",
-            "UInt64"
-        )
-        frame_def.create_column_def(
-            "energy",
-            "float",
-            is_input=False
-        )
+        column_def_list = [
+            {
+                "name": "timestamp",
+                "dtype_str": "datetime64[ns, US/Pacific]"
+            },
+            {
+                "name": "power",
+                "dtype_str": "float"
+            },
+            {
+                "name": "customer_id",
+                "dtype_str": "UInt64"
+            },
+            {
+                "name": "energy",
+                "dtype_str": "float",
+                "is_input": False
+            }
+        ]
+        frame_def = FrameDef(column_def_list)
 
         # Create empty dataframe
         dataframe = frame_def.empty_dataframe
@@ -46,7 +48,7 @@ class PdFrameTestCase(TestCase):
     def test_remove_column_def(self):
         """
         Removing a column_def from the frame_def should result in a
-        valid dataframe becomeing invalid.
+        valid dataframe becoming invalid.
         """
         # Initial dataframe should be valid.
         pd_frame = self.pd_frame
@@ -54,7 +56,7 @@ class PdFrameTestCase(TestCase):
             pd_frame.frame_def.validate(pd_frame.dataframe)
         )
         # Now remove a ColumnDef from the FrameDef
-        pd_frame.frame_def.remove_column_def('power')
+        del pd_frame.frame_def.column_defs[0]
         self.assertFalse(
             pd_frame.frame_def.validate(pd_frame.dataframe)
         )

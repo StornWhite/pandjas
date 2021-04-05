@@ -26,61 +26,81 @@ class FrameDef(object):
         :return: pandas dataframe
         """
         df = pd.DataFrame()
-        for key, value in self.column_defs.items():
-            df[key] = pd.Series(dtype=value.dtype)
+        for column_def in self.column_defs:
+            df[column_def.name] = pd.Series(dtype=column_def.dtype)
 
         return df
 
     @property
-    def column_defs_dict(self):
+    def column_def_list(self):
         """
-        This dictionary defines the formatting of a dataframe.  It can be
-        exported to JSON for persistent storage, or used to init a FrameDef
-        object.
+        This list defines the formatting of a dataframe.  It can be used to
+        init a FrameDef object.
 
         format is:
-        { <column_name> : {
+        [
+            {
             "name": <column_name>,
             "dtype_str": <pandas_dtype_string>,
             "is_input": <boolean>
             },
-          ...
-        }
-        :return: dict
+            ...
+        ]
+        :return: list
         """
 
-        column_defs_dict = dict()
+        column_def_list = []
 
-        for name, column_def in self.column_defs.items():
-            column_defs_dict[name] = column_def.column_def_dict
+        for column_def in self.column_defs:
+            column_def_list.append(column_def.column_def_dict)
 
-        return column_defs_dict
+        return column_def_list
+
+    @property
+    def column_names(self):
+        """
+        Returns the column names as a set.
+        :return: set of column names
+        """
+        names = set()
+        for column_def in self.column_defs:
+            names.add(column_def.name)
+
+        return names
 
     # ~~~~~~~~~~~~~~~~~~~~~~~
     # Backend methods
     # ~~~~~~~~~~~~~~~~~~~~~~~
 
-    def __init__(self, column_defs_dict=None):
+    def __init__(self, column_def_list=None):
         """
-        Initialized column_defs from column_def_dict with format:
+        Initializes column_defs, which is the list of ColumnDef objects that
+        define dataframe formatting, from a column_def_list with format:
 
-        { <column_name> : {
+        [
+            {
             "name": <column_name>,
             "dtype_str": <pandas_dtype_string>,
             "is_input": <boolean>
             },
-          ...
-        }
+            ...
+        ]
 
         or creates empty column_defs if no input.
 
-        :param column_def_dict: dictionary of column attributes.
+        :param column_def_list: list of column attributes.
         """
-        self.column_defs = dict()
+        self.column_defs = []
 
-        if column_defs_dict is not None:
-            for definition in column_defs_dict.values():
-                self.create_column_def(**definition)
+        if column_def_list is not None:
+            for definition_dict in column_def_list:
+                column_def = ColumnDef(
+                    frame_def=self,
+                    name=definition_dict.get('name'),
+                    dtype_str=definition_dict.get('dtype_str'),
+                    is_input=definition_dict.get('is_input', True)
+                )
+                self.column_defs.append(column_def)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~
     # User methods
@@ -95,7 +115,7 @@ class FrameDef(object):
         :param dataframe:
         :return: boolean dataframe conforms
         """
-        column_defs = self.column_defs.values()
+        column_defs = self.column_defs
 
         if len(column_defs) != len(dataframe.columns):
             # Missing or extra columns.
@@ -114,34 +134,6 @@ class FrameDef(object):
                 return False
 
         return True
-
-
-    def create_column_def(self, name, dtype_str, is_input=True):
-        """
-        Creates a ColumnDef object and adds it to the FrameDef, using the
-        column name as key.
-
-        :param name: string name of added column
-        :param dtype_str: string representing a pandas dtype
-        """
-        column_def = ColumnDef(
-            frame_def=self,
-            name=name,
-            dtype_str=dtype_str,
-            is_input=is_input
-        )
-        self.column_defs[name] = column_def
-
-    def remove_column_def(self, name):
-        """
-        Removes a ColumnDef object from a FrameDef. object
-
-        :param name: string column name
-        """
-        try:
-            self.column_defs.pop(name)
-        except KeyError as e:
-            pass
 
 
 class ColumnDef(object):
@@ -180,6 +172,10 @@ class ColumnDef(object):
         # Validate incoming data.
         if not name:
             raise exc.NoColumnDefNameError()
+
+        if name in frame_def.column_names:
+            raise exc.DuplicateColumnDefNameError()
+
         self.name = name
 
         if frame_def is None:

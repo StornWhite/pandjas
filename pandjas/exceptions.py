@@ -21,6 +21,9 @@ class NoColumnDefNameError(PandjasErrorMixin, Exception):
     default_detail = "All columns definitions must include a name."
     default_code = "objects_no_column_def_name"
 
+class DuplicateColumnDefNameError(PandjasErrorMixin, Exception):
+    default_detail = "A column name is being used more than once."
+    default_code = "objects_duplicate_column_def_name"
 
 class NoColumnDefFileDefError(PandjasErrorMixin, Exception):
     default_detail = "All columns definitions must include a file_def."
