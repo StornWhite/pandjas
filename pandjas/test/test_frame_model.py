@@ -1,8 +1,6 @@
 from unittest import TestCase
 from os.path import exists
-
 from pandjas.objects import FrameDef
-from pandjas.models import FrameTemplate
 from pandjas.exceptions import InvalidDataFrameError
 from test_models.models import TestFrameModel
 
@@ -12,36 +10,31 @@ class FrameModelTestCase(TestCase):
     def setUp(self):
 
         # Create FrameDef object
-        frame_def = FrameDef()
-        frame_def.create_column_def(
-            "timestamp",
-            "datetime64[ns, US/Pacific]"
-        )
-        frame_def.create_column_def(
-            "power",
-            "float"
-        )
-        frame_def.create_column_def(
-            "customer_id",
-            "UInt64"
-        )
-        frame_def.create_column_def(
-            "energy",
-            "float",
-            is_input=False
-        )
-
-        # Create FrameTemplate
-        template = FrameTemplate(
-            name='Test Template',
-            template=frame_def.column_defs_dict
-        )
-        template.save()
+        column_def_list = [
+            {
+                "name": "timestamp",
+                "dtype_str": "datetime64[ns, US/Pacific]"
+            },
+            {
+                "name": "power",
+                "dtype_str": "float"
+            },
+            {
+                "name": "customer_id",
+                "dtype_str": "UInt64"
+            },
+            {
+                "name": "energy",
+                "dtype_str": "float",
+                "is_input": False
+            }
+        ]
+        frame_def = FrameDef(column_def_list)
 
         # Create TestFrameModel
         self.tfm = TestFrameModel(
             name = 'Test Model Object',
-            frame_template=template,
+            frame_def=frame_def,
         )
         self.tfm.save()
 
