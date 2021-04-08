@@ -1,35 +1,44 @@
 from unittest import TestCase
 
-from pandjas.objects import FrameDef, PdIntervalFrame
+from pandjas.objects import FrameDef, PdIntervalFrameABC
+
+
+# Create FrameDef object
+frame_def = FrameDef(
+    [
+        {
+            "name": "power",
+            "dtype_str": "float"
+        },
+        {
+            "name": "customer_id",
+            "dtype_str": "UInt64"
+        },
+        {
+            "name": "energy",
+            "dtype_str": "float",
+            "is_input": False
+        }
+    ]
+)
+
+
+# Subclass PdIntervalFrame
+class TestPdIntervalFrame(PdIntervalFrameABC):
+
+    # PdFrame subclasses must define frame_def property
+    frame_def=frame_def
+    pass
 
 
 class PdIntervalFrameTestCase(TestCase):
 
     def setUp(self):
 
-        # Create FrameDef object
-        column_def_list = [
-            {
-                "name": "power",
-                "dtype_str": "float"
-            },
-            {
-                "name": "customer_id",
-                "dtype_str": "UInt64"
-            },
-            {
-                "name": "energy",
-                "dtype_str": "float",
-                "is_input": False
-            }
-        ]
-        frame_def = FrameDef(column_def_list)
-
-        # Create PdIntervalFrame object
-        self.pd_interval_frame = PdIntervalFrame(
+        # Create TestPdIntervalFrame object
+        self.pd_interval_frame = TestPdIntervalFrame(
             period=900,
-            timezone='US/Pacific',
-            frame_def=frame_def
+            timezone='US/Pacific'
         )
 
     def test_validate_true(self):

@@ -1,6 +1,7 @@
 from os import path
 from uuid import uuid4
 from threading import Thread
+from abc import ABCMeta
 
 import pandas as pd
 
@@ -9,11 +10,11 @@ from django.conf import settings
 from timezone_field import TimeZoneField
 
 from utils.time import get_period_as_timedelta
-from pandjas.objects import FrameDef, PdFrame, PdIntervalFrame
+from pandjas.objects import FrameDef, PdFrameABC, PdIntervalFrameABC
 from pandjas.exceptions import InvalidDataFrameError
 
 
-class ValidatingModel(models.Model):
+class ValidatingModelABC(models.Model):
     """
     An abstract django model that self-validates by calling full_clean()
     during save.  This in turn validates all model fields.  Subclasses of
@@ -28,7 +29,17 @@ class ValidatingModel(models.Model):
         abstract = True
 
 
-class FrameModel(ValidatingModel, PdFrame):
+class ModelAMCMeta(models.base.ModelBase, ABCMeta):
+    """
+    This metaclass subclasses the metaclass for Django's Model class and
+    python's built-in ABCMeta, which is the metaclass for Abstract Base
+    Classes.  We need to create this metaclass explictly in order to
+    subclass both Model and ABC.
+    """
+    pass
+
+
+class FrameModelABC(ValidatingModelABC, PdFrameABC, metaclass=ModelAMCMeta):
     """
     Subclasses of this abstract django model are automatically linked to a
     pandas dataframe that is automatically assigned a unique name and stored
@@ -110,15 +121,13 @@ class FrameModel(ValidatingModel, PdFrame):
         :param dataframe: optional dataframe object, must conform to FrameDef
         """
         dataframe = kwargs.pop('dataframe', None)
-        frame_def = kwargs.pop('frame_def', None)
 
         # Initialize the django model
-        ValidatingModel.__init__(self, *args, **kwargs)
+        ValidatingModelABC.__init__(self, *args, **kwargs)
 
         # Add in the frame_def and dataframe
-        PdFrame.__init__(
+        PdFrameABC.__init__(
             self,
-            frame_def=frame_def,
             dataframe=dataframe
         )
 
@@ -165,7 +174,9 @@ class FrameModel(ValidatingModel, PdFrame):
         super().delete(*args, **kwargs)
 
 
-class IntervalModel(PdIntervalFrame, FrameModel):
+class IntervalModelABC(
+    PdIntervalFrameABC, FrameModelABC, metaclass=ModelAMCMeta
+):
     """
     A FrameModel subclass for storing periodic data.  Subclassing
     PDIntervalFrame provides access to init and validation methods for
@@ -205,7 +216,6 @@ class IntervalModel(PdIntervalFrame, FrameModel):
         an argument, as well as initializing timezone and period.
         """
         dataframe = kwargs.pop('dataframe', None)
-        frame_def = kwargs.pop('frame_def', None)
         period = kwargs.pop('period', None)
         timezone = kwargs.get('timezone', None)
 
@@ -216,13 +226,12 @@ class IntervalModel(PdIntervalFrame, FrameModel):
             kwargs['period_str'] = self.period.isoformat()
 
         # Initialize the django model
-        ValidatingModel.__init__(self, *args, **kwargs)
+        ValidatingModelABC.__init__(self, *args, **kwargs)
 
         # Add in the frame_def and dataframe
-        PdIntervalFrame.__init__(
+        PdIntervalFrameABC.__init__(
             self,
             period=period,
             timezone=timezone,
-            frame_def=frame_def,
             dataframe=dataframe
         )

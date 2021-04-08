@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+
 import pandas as pd
 import pytz
 
@@ -191,18 +193,28 @@ class ColumnDef(object):
         self.is_input = is_input
 
 
-class PdFrame(object):
+class PdFrameABC(ABC):
     """
     The base-level wrapper for a pandas dataframe.  It includes both a
     dataframe and a FrameDef object which can be used to validate that
     the dataframe conforms to our data expectations.  It also includes
     base-level methods for accessing a dataframe.
 
-    You could subclass PdFrame to create your own wrapper class with an
-    explicit frame definition and your own analysis methods for performing
-    high level operations and analysis on the dataframe with a goal of
-    populating result column data from input column data.
+    This is an abstract base class.  You could subclass PdFrame to create
+    your own wrapper class with an explicit frame definition and your own
+    analysis methods for performing high level operations and analysis on
+    the dataframe with a goal of populating result column data from input
+    column data.
     """
+    @property
+    @abstractmethod
+    def frame_def(self):
+        """
+        Override this with an instance of the FrameDef class, which will
+        define the expected formatting of the dataframe.
+        """
+        raise NotImplementedError("Child class must override frame_def.")
+
     @property
     def dataframe(self):
         if hasattr(self, '_dataframe'):
@@ -218,18 +230,13 @@ class PdFrame(object):
         else:
             raise exc.InvalidDataFrameError
 
-    def __init__(self, frame_def=None, dataframe=None):
+    def __init__(self, dataframe=None):
         """
         Sets or creates the PdFrame objects frame definition and initial
         dataframe.
 
-        :param frame_def: FrameDef object
         :param dataframe: panadas dataframe object
         """
-        if frame_def is None:
-            self.frame_def = FrameDef()
-        else:
-            self.frame_def = frame_def
 
         if dataframe is None:
             # Create conforming but empty dataframe
@@ -262,7 +269,8 @@ class PdFrame(object):
         """
         return self.frame_def.empty_dataframe
 
-class PdIntervalFrame(PdFrame):
+
+class PdIntervalFrameABC(PdFrameABC):
     """
     A PdFrame subclass for periodic data.  The class includes additional
     validation to ensure that the index is of timezone-aware datetimes with
@@ -270,7 +278,7 @@ class PdIntervalFrame(PdFrame):
     periodic data.
     """
 
-    def __init__(self, period, timezone, frame_def=None, dataframe=None):
+    def __init__(self, period, timezone, dataframe=None):
         """
         Creates a new PdIntervalFrame object.
 
@@ -283,7 +291,6 @@ class PdIntervalFrame(PdFrame):
             string - pandas frequency string (see https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html?highlight=frequency#dateoffset-objects)
             pandas Timedelta object
         :param timezone: pytz timezone object or timezone string
-        :param frame_def: FrameDef object
         :param dataframe: pandas DataFrame object
         """
 
@@ -296,9 +303,8 @@ class PdIntervalFrame(PdFrame):
         self.period = get_period_as_timedelta(period)
 
         # Add in the frame_def and dataframe
-        PdFrame.__init__(
+        PdFrameABC.__init__(
             self,
-            frame_def=frame_def,
             dataframe=dataframe
         )
 

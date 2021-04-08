@@ -2,40 +2,50 @@ from unittest import TestCase
 
 import pandas as pd
 
-from pandjas.objects import FrameDef, PdFrame
+from pandjas.objects import FrameDef, PdFrameABC
+
+
+# Create FrameDef object
+frame_def = FrameDef(
+    [
+        {
+            "name": "timestamp",
+            "dtype_str": "datetime64[ns, US/Pacific]"
+        },
+        {
+            "name": "power",
+            "dtype_str": "float"
+        },
+        {
+            "name": "customer_id",
+            "dtype_str": "UInt64"
+        },
+        {
+            "name": "energy",
+            "dtype_str": "float",
+            "is_input": False
+        }
+    ]
+)
+
+
+# Subclass PdFrame
+class TestPdFrame(PdFrameABC):
+
+    # PdFrame subclasses must define frame_def property
+    frame_def=frame_def
+    pass
 
 
 class PdFrameTestCase(TestCase):
 
     def setUp(self):
 
-        # Create FrameDef object
-        column_def_list = [
-            {
-                "name": "timestamp",
-                "dtype_str": "datetime64[ns, US/Pacific]"
-            },
-            {
-                "name": "power",
-                "dtype_str": "float"
-            },
-            {
-                "name": "customer_id",
-                "dtype_str": "UInt64"
-            },
-            {
-                "name": "energy",
-                "dtype_str": "float",
-                "is_input": False
-            }
-        ]
-        frame_def = FrameDef(column_def_list)
-
         # Create empty dataframe
         dataframe = frame_def.empty_dataframe
 
         # Create PdFrame object
-        self.pd_frame = PdFrame(frame_def, dataframe)
+        self.pd_frame = TestPdFrame(dataframe)
 
     def test_validate_valid(self):
 
