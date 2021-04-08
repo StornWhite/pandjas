@@ -33,13 +33,12 @@ class FrameModelTestCase(TestCase):
 
         # Create TestFrameModel
         self.tfm = TestFrameModel(
-            name = 'Test Model Object',
-            frame_def=frame_def,
+            name='Test Model Object'
         )
         self.tfm.save()
 
     def tearDown(self):
-        if not self.tfm is None:
+        if self.tfm is not None:
             self.tfm.delete()
 
     def test_frame_model_save(self):

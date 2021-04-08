@@ -34,8 +34,7 @@ class IntervalModelTestCase(TestCase):
 
         # Create TestIntervalModel
         self.tim = TestIntervalModel(
-            name = 'Test Model Object',
-            frame_def=frame_def,
+            name='Test Model Object',
             timezone='US/Pacific',
             period='900s'
         )
